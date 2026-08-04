@@ -59,6 +59,8 @@ button {
     background: none;
     width: auto;
     color: #6e6e6e;
+    float: right;
+    margin-top:-4px;
 }
 
 button:active {
