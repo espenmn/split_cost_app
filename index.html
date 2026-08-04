@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="no">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>
+        Utlegg Me & You
+    </title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2d6cdf">
+</head>
+
+
+<body>
+    <div id="maincontainer" class="container">
+        <div class="card">
+            <div class="row"></div>
+            <h2>
+                Registrer utlegg
+            </h2>
+            <button id="settingsButton">
+                ⚙
+            </button>
+            <div class="row"></div>
+        </div>
+        <div class="card">
+            <div class="row">
+                <select id="person"></select>
+                <input id="amount" type="number" placeholder="Beløp">
+            </div>
+
+            <div class="row">
+                <select id="currency"></select>
+                <input id="desc" placeholder="Beskrivelse">
+            </div>
+
+            <button id="add">
+                Legg til utlegg
+            </button>
+
+        </div>
+
+
+        <div class="card">
+            <div class="row">
+                <h2>
+                    Vekslingskurser
+                </h2>
+            </div>
+            <div class="row">
+                <div id="rates"></div>
+            </div>
+        </div>
+
+
+
+        <div class="card">
+            <div class="row">
+                <h2>
+                    Saldo
+                </h2>
+            </div>
+            <div class="row">
+                <div id="balance"></div>
+            </div>
+        </div>
+
+
+
+        <div class="card">
+            <div id="debt"></div>
+        </div>
+
+
+
+        <div class="card">
+            <div class="row">
+            <h2>
+                Historikk
+            </h2>
+            </div>
+            <div class="row">
+                <div id="list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="storage.js"></script>
+    <script src="settings.js"></script>
+    <script src="ui.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
