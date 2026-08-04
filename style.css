@@ -58,6 +58,7 @@ button {
 #settingsButton {
     background: none;
     width: auto;
+    color: #6e6e6e;
 }
 
 button:active {
