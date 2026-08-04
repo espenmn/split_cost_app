@@ -3,28 +3,48 @@ let expenses = loadExpenses();
 const fmt = new Intl.NumberFormat("no-NO");
 
 
+// -------------------------
+// Save
+// -------------------------
+
 function save() {
     saveExpenses(expenses);
 }
 
 
+// -------------------------
+// Currency conversion
+// -------------------------
 
 function toNOK(amount, currency) {
 
-    return amount / settings.currencies[currency];
+    const rate = settings.currencies[currency];
 
+    if (!rate) {
+        return 0;
+    }
+
+    return amount / rate;
 }
 
 
 function fromNOK(amount, currency) {
 
-    return amount * settings.currencies[currency];
+    const rate = settings.currencies[currency];
 
+    if (!rate) {
+        return 0;
+    }
+
+    return amount * rate;
 }
 
 
+// -------------------------
+// Add expense
+// -------------------------
 
-function addExpense(){
+function addExpense() {
 
     const person =
         document.getElementById("person").value;
@@ -39,7 +59,9 @@ function addExpense(){
         document.getElementById("desc").value;
 
 
-    if (!amount) return;
+    if (!amount) {
+        return;
+    }
 
 
     expenses.push({
@@ -63,7 +85,7 @@ function addExpense(){
     save();
 
 
-    // remember last choices
+    // Remember selections
     setDefaultUser(person);
     setDefaultCurrency(currency);
 
@@ -71,25 +93,34 @@ function addExpense(){
     render();
 
 
-    // Clear only these fields
-    document.getElementById("amount").value="";
-    document.getElementById("desc").value="";
+    // Do not remember these
+    document.getElementById("amount").value = "";
+
+    document.getElementById("desc").value = "";
 
 }
 
 
 
+// -------------------------
+// Delete expense
+// -------------------------
 
-function deleteExpense(id){
+function deleteExpense(id) {
+
 
     if (!confirm(
         "Vil du slette denne betalingen?"
-    )) return;
+    )) {
+
+        return;
+
+    }
 
 
     expenses =
         expenses.filter(
-            e=>e.id !== id
+            e => e.id !== id
         );
 
 
@@ -101,230 +132,441 @@ function deleteExpense(id){
 
 
 
-function calculate(){
+// -------------------------
+// Calculate totals
+// -------------------------
+
+function calculate() {
 
 
-    let totals={};
+    const totals = {};
 
 
-    settings.users.forEach(u=>{
-        totals[u]=0;
+    settings.users.forEach(user => {
+
+        totals[user] = 0;
+
     });
 
 
 
-    expenses.forEach(e=>{
+    expenses.forEach(expense => {
 
-        totals[e.person] +=
+
+        // Ignore deleted users safely
+        if (!(expense.person in totals)) {
+
+            totals[expense.person] = 0;
+
+        }
+
+
+        totals[expense.person] +=
             toNOK(
-                e.amount,
-                e.currency
+                expense.amount,
+                expense.currency
             );
 
+
     });
 
 
 
-    let total=0;
-
-    Object.values(totals)
-    .forEach(v=> total+=v);
-
-
-
-    let share =
-        total / settings.users.length;
+    const total =
+        Object.values(totals)
+        .reduce(
+            (a,b)=>a+b,
+            0
+        );
 
 
+    const share =
+        total / Object.keys(totals).length;
 
-    let maxUser=null;
-    let maxValue=-Infinity;
+
+
+    const balances = {};
 
 
     Object.keys(totals)
-    .forEach(u=>{
+    .forEach(user=>{
 
-        let diff =
-            totals[u]-share;
-
-
-        if(diff>maxValue){
-
-            maxValue=diff;
-            maxUser=u;
-
-        }
+        balances[user] =
+            totals[user] - share;
 
     });
 
 
 
     return {
+
         totals,
-        debt:maxValue,
-        user:maxUser
+
+        balances
+
     };
 
 }
 
 
 
+// -------------------------
+// Calculate payments
+// -------------------------
 
-function debtText(){
-
-    const result =
-        calculate();
+function calculateSettlements() {
 
 
-    if(result.debt < 0.01){
+    const {
+        balances
+    } = calculate();
 
-        return "Ingen skylder noe";
+
+
+    const creditors = [];
+
+    const debtors = [];
+
+
+
+    Object.entries(balances)
+    .forEach(([user,balance])=>{
+
+
+        if (balance > 0.01) {
+
+            creditors.push({
+
+                user,
+
+                amount: balance
+
+            });
+
+        }
+
+
+        else if (balance < -0.01) {
+
+
+            debtors.push({
+
+                user,
+
+                amount: -balance
+
+            });
+
+
+        }
+
+
+    });
+
+
+
+    const settlements = [];
+
+
+
+    while (
+        creditors.length &&
+        debtors.length
+    ) {
+
+
+        const creditor =
+            creditors[0];
+
+
+        const debtor =
+            debtors[0];
+
+
+
+        const amount =
+            Math.min(
+                creditor.amount,
+                debtor.amount
+            );
+
+
+
+        settlements.push({
+
+            from: debtor.user,
+
+            to: creditor.user,
+
+            amount
+
+
+        });
+
+
+
+        creditor.amount -= amount;
+
+        debtor.amount -= amount;
+
+
+
+        if (creditor.amount < 0.01) {
+
+            creditors.shift();
+
+        }
+
+
+        if (debtor.amount < 0.01) {
+
+            debtors.shift();
+
+        }
+
 
     }
 
 
-    let debtor =
-        settings.users
-        .find(u =>
-            u !== result.user
-        );
+
+    return settlements;
+
+}
 
 
-    let amount =
-        result.debt;
+// -------------------------
+// Debt display
+// -------------------------
+
+function debtText() {
+
+
+    const settlements =
+        calculateSettlements();
 
 
 
-    return `
-    <div class="row">        
-    <h2>
-    ${debtor} skylder ${result.user}
-    </h2>
-    </div>
+    if (!settlements.length) {
 
- 
-    <span class="large">
+        return `
+        <h2>
+        Ingen skylder noe
+        </h2>
+        `;
 
-    NOK:
-    ${fmt.format(Math.round(amount))}
-
-    </span>
-
-    <br>
+    }
 
 
-    KRW:
-    ${fmt.format(
-        Math.round(
-        fromNOK(amount,"KRW"))
-    )}
+
+    let html = "";
 
 
-    |
 
-    JPY:
-    ${fmt.format(
-        Math.round(
-        fromNOK(amount,"JPY"))
-    )}
+    settlements.forEach(payment => {
 
 
-    |
+        html += `
 
-    EUR:
-    ${fmt.format(
-        Math.round(
-        fromNOK(amount,"EUR"))
-    )}
- 
-    `;
+        <div class="row">
 
+        <h2>
+        ${payment.from}
+        skylder
+        ${payment.to}
+        </h2>
+
+        </div>
+
+
+        <span class="large">
+
+        NOK:
+        ${fmt.format(
+            Math.round(payment.amount)
+        )}
+
+        </span>
+
+
+        <br>
+
+
+        KRW:
+        ${fmt.format(
+            Math.round(
+                fromNOK(
+                    payment.amount,
+                    "KRW"
+                )
+            )
+        )}
+
+
+        |
+
+        JPY:
+        ${fmt.format(
+            Math.round(
+                fromNOK(
+                    payment.amount,
+                    "JPY"
+                )
+            )
+        )}
+
+
+        |
+
+        EUR:
+        ${fmt.format(
+            Math.round(
+                fromNOK(
+                    payment.amount,
+                    "EUR"
+                )
+            )
+        )}
+
+
+        <br><br>
+
+        `;
+
+
+    });
+
+
+
+    return html;
 
 }
 
 
 
 
-function render(){
+
+// -------------------------
+// Render everything
+// -------------------------
+
+function render() {
 
 
-    let result =
+    const result =
         calculate();
 
 
 
-    let balance =
+    // ------------------
+    // Balances
+    // ------------------
+
+    const balance =
         document.getElementById("balance");
 
 
-    balance.innerHTML="";
+    balance.innerHTML = "";
+
 
 
     Object.keys(result.totals)
-    .forEach(u=>{
+    .forEach(user=>{
+
 
         balance.innerHTML += `
 
-        ${u} sum:
+        ${user} sum:
+
         ${fmt.format(
             Math.round(
-            result.totals[u])
+                result.totals[user]
+            )
         )}
-        kr<br>
+
+        kr
+
+        <br>
 
         `;
+
 
     });
 
 
 
-    document.getElementById("debt")
+    // ------------------
+    // Debt
+    // ------------------
+
+    document
+    .getElementById("debt")
     .innerHTML =
         debtText();
 
 
 
-    document.getElementById("rates")
-    .innerHTML = `
 
-    100 NOK =
-    ${fmt.format(
-        100*settings.currencies.KRW || 0
-    )}
-    KRW |
 
-    ${fmt.format(
-        100*settings.currencies.JPY || 0
-    )}
-    JPY |
+    // ------------------
+    // Exchange rates
+    // ------------------
 
-    ${fmt.format(
-        100*settings.currencies.EUR || 0
-    )}
-    EUR
-
-    `;
+    let ratesHTML = "";
 
 
 
-    let list =
+    Object.keys(settings.currencies)
+    .forEach(currency=>{
+
+
+        ratesHTML += `
+
+        1 NOK =
+        ${settings.currencies[currency]}
+        ${currency}
+
+        <br>
+
+        `;
+
+
+    });
+
+
+
+    document
+    .getElementById("rates")
+    .innerHTML =
+        ratesHTML;
+
+
+
+
+    // ------------------
+    // History
+    // ------------------
+
+    const list =
         document.getElementById("list");
 
 
-    list.innerHTML="";
+
+    list.innerHTML = "";
+
 
 
     expenses
     .slice()
     .reverse()
-    .forEach(e=>{
+    .forEach(expense=>{
 
 
-        let nok =
+        const nok =
             toNOK(
-                e.amount,
-                e.currency
+                expense.amount,
+                expense.currency
             );
+
 
 
         list.innerHTML += `
@@ -332,41 +574,65 @@ function render(){
 
         <div class="item flex">
 
+
         <div>
 
-        ${e.date}
+
+        ${expense.date}
+
         -
-        <b>${e.person}</b>
+
+        <b>
+        ${expense.person}
+        </b>
 
 
         <br>
 
-        ${fmt.format(e.amount)}
-        ${e.currency}
 
-        (${fmt.format(
+        ${fmt.format(expense.amount)}
+
+        ${expense.currency}
+
+
+        (
+
+        ${fmt.format(
             Math.round(nok)
         )}
-        NOK)
+
+        NOK
+
+        )
 
 
         <br>
 
+
         <span class="small">
-        ${e.desc || ""}
+
+        ${expense.desc || ""}
+
         </span>
 
 
-
         </div>
+
+
+
         <button
+
         class="delete slett"
-        onclick="deleteExpense(${e.id})">
+
+        onclick="
+        deleteExpense(${expense.id})
+        "
+
+        >
 
         Slett
 
         </button>
-
 
 
         </div>
@@ -381,6 +647,11 @@ function render(){
 }
 
 
+
+
+// -------------------------
+// Events
+// -------------------------
 
 document
 .getElementById("add")
@@ -395,6 +666,12 @@ document
 showSettings;
 
 
+
+
+
+// -------------------------
+// Start app
+// -------------------------
 
 fillSelectors();
 
