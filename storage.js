@@ -12,19 +12,17 @@ function saveExpenses(data) {
 function defaultSettings() {
     return {
         users: [
-            "Kari",
-            "Espen"
+            "Me",
+            "You"
         ],
 
         currencies: {
             NOK: 1,
-            EUR: 0.089,
-            KRW: 156,
-            JPY: 16.35
+            EUR: 0.089, 
         },
 
         defaults: {
-            user: "Kari",
+            user: "Me",
             currency: "NOK"
         }
     };
