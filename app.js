@@ -340,107 +340,61 @@ function calculateSettlements() {
 
 function debtText() {
 
-
-    const settlements =
-        calculateSettlements();
-
-
+    const settlements = calculateSettlements();
 
     if (!settlements.length) {
-
         return `
-        <h2>
-        Ingen skylder noe
-        </h2>
+            <div class="row">
+                <h2>Ingen skylder noe</h2>
+            </div>
         `;
-
     }
-
-
 
     let html = "";
 
-
-
     settlements.forEach(payment => {
 
-
         html += `
+            <div class="row">
+                <h2>${payment.from} skylder ${payment.to}</h2>
+            </div>
 
-        <div class="row">
-
-        <h2>
-        ${payment.from}
-        skylder
-        ${payment.to}
-        </h2>
-
-        </div>
-
-
-        <span class="large">
-
-        NOK:
-        ${fmt.format(
-            Math.round(payment.amount)
-        )}
-
-        </span>
-
-
-        <br>
-
-
-        KRW:
-        ${fmt.format(
-            Math.round(
-                fromNOK(
-                    payment.amount,
-                    "KRW"
-                )
-            )
-        )}
-
-
-        |
-
-        JPY:
-        ${fmt.format(
-            Math.round(
-                fromNOK(
-                    payment.amount,
-                    "JPY"
-                )
-            )
-        )}
-
-
-        |
-
-        EUR:
-        ${fmt.format(
-            Math.round(
-                fromNOK(
-                    payment.amount,
-                    "EUR"
-                )
-            )
-        )}
-
-
-        <br><br>
-
+            <div class="large">
+                NOK: ${fmt.format(Math.round(payment.amount))}
+            </div>
+            <div class="small">
         `;
 
+        // Show all currencies except NOK
+        Object.entries(settings.currencies).forEach(([code, rate], index) => {
 
+            if (code === "NOK") {
+                return;
+            }
+
+            html += ` ≈
+                ${code}: ${fmt.format(
+                    Math.round(fromNOK(payment.amount, code))
+                )}
+            `;
+
+            // Separator between currencies
+            const remaining = Object.keys(settings.currencies)
+                .filter(c => c !== "NOK");
+
+            if (index < remaining.length - 1) {
+                html += "   ";
+            }
+        });
+
+        html += `
+            </div>
+            <br>
+        `;
     });
 
-
-
     return html;
-
 }
-
 
 
 
